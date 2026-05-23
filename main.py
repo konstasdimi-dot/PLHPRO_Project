@@ -215,3 +215,5 @@ exit_button.grid(row=1, column=1, sticky=E, columnspan=2, pady=5, padx=5)
 # ROOT.MAINLOOP() -----------------------------------------
 
 root.mainloop()
+
+# This Code was made by humans for humans.
