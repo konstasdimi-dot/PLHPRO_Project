@@ -9,6 +9,14 @@ import all_functions
 
 activities_db = []
 
+def update_time_display():
+
+    total_hours_used = sum(activity["hours"] for activity in activities_db)
+
+    hours_left = 168.0 - total_hours_used
+
+    free_time_label.config(text=f"Free Time for this week: {hours_left:.1f} hours")
+
 def onn_add_clicked():
     raw_name = activity_name_entry.get().strip()
     raw_category = category_combo.get()
@@ -28,6 +36,8 @@ def onn_add_clicked():
         hours_entry.delete(0, "end")
         category_combo.set("Choose here...")
         importance_combo.set("Choose here...")
+
+        update_time_display()
 
 # ---- Editing an Activity ----
 
@@ -82,6 +92,8 @@ def edit_activity():
             db_table.item(item_id, values=(result["name"], result["category"], result["hours"], result["importance"]))
             edit_window.destroy()
 
+            update_time_display()
+
     Button(edit_window, text= "Save Changes" , command=save_edits).grid(row=4, column=0, columnspan=2, pady=15)
 
 # ---- Deleting an Activity ----
@@ -104,6 +116,8 @@ def delete_activity():
         del activities_db[item_index]
 
         db_table.delete(item_id)
+
+        update_time_display()
 
 # MAIN WINDOW ----------------------------------------------
 
@@ -171,20 +185,40 @@ edit_button.grid(row=6, sticky=NSEW, columnspan=2, pady=5, padx=5)
 delete_button = Button(left_frame, text="Delete Activity", command=delete_activity)
 delete_button.grid(row=7, sticky=NSEW, columnspan=2, pady=5, padx=5)
 
+# ---- Row 8 ----
+
+Separator(left_frame, orient='horizontal').grid(row=8, column=0, columnspan=2, sticky= EW, pady=15, padx=5)
+
+# ---- Row 9 ----
+
+import_button = Button(left_frame, text="Import CSV")
+import_button.grid(row=9, sticky=NSEW, columnspan=2, pady=5, padx=5)
+
+# ---- Row 10 ----
+
+export_button = Button(left_frame, text="Export CSV")
+export_button.grid(row=10, sticky=NSEW, columnspan=2, pady=5, padx=5)
 
 # ============================== RIGHT FRAME ===============================
 
 right_frame = LabelFrame(root, text="Dashboard",padding=10)
 right_frame.grid(row=0, column=1, sticky=NSEW, padx=10, pady=10)
 
+free_time_label = Label(right_frame, text="Free Time for this week: 168 hours", font=("Arial", 14, "bold"))
+free_time_label.pack(padx=5, pady=5)
+
 tabs = Notebook(right_frame)
 tabs.pack(fill="both", expand=True)
 
 tab1_activities = Frame(tabs)
 tab2_optimal_charts = Frame(tabs)
+tab3_statistics = Frame(tabs)
+tab4_graphics = Frame(tabs)
 
 tabs.add(tab1_activities, text="All Activities")
 tabs.add(tab2_optimal_charts, text="Optimal Scheduling")
+tabs.add(tab3_statistics, text="Statistics")
+tabs.add(tab4_graphics, text="Graphics")
 
 
 # ---- All Activities Tab ----
@@ -215,5 +249,3 @@ exit_button.grid(row=1, column=1, sticky=E, columnspan=2, pady=5, padx=5)
 # ROOT.MAINLOOP() -----------------------------------------
 
 root.mainloop()
-
-# This Code was made by humans for humans.
