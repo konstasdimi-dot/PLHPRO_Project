@@ -17,3 +17,19 @@ def validate_activity_data(name,category, hours_str, importance_str):
     }
 
     return True, valid_activity
+
+def calculate_optimal_schedule(database, total_available_time):
+    sorted_activities = sorted(database, key=lambda x: x["importance"], reverse=True)
+
+    feasible = []
+    rejected = []
+    current_time = 0.0
+
+    for activity in sorted_activities:
+        if current_time + activity["hours"] <= total_available_time:
+            feasible.append(activity)
+            current_time += activity["hours"]
+        else:
+            rejected.append(activity)
+
+    return feasible, rejected
