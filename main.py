@@ -7,9 +7,21 @@ import all_functions
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+import sys
+import os
+
+# Extra Spice ----------
+
+def get_icon_path(filename):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, filename)
+
 # ============================== FUNCTIONS ===============================
 
-activities_db = []
+activities_db = all_functions.load_data()
 
 # ==== CHARTS & TIME MANAGEMENT FUNCTIONS ====
 
@@ -23,11 +35,29 @@ def update_pie_chart():
         Label(tab4_graphics, text="Add activities in order to view your schedule breakdown!")
         return
 
-    labels = [activity["name"] for activity in activities_db]
-    sizes = [activity["hours"] for activity in activities_db]
+    try:
+        total_time = float(total_time_entry.get().strip())
+    except ValueError:
+        total_time = 168.0
 
-    total_hours = sum(sizes)
-    leftover = 168.0 - total_hours
+    feasible, _ = all_functions.calculate_optimal_schedule(activities_db, total_time)
+
+    # 3. Sum up the hours by category for feasible activities only
+    feasible_obl = sum(item["hours"] for item in feasible if item["category"] == "Obligation")
+    feasible_free = sum(item["hours"] for item in feasible if item["category"] == "Free Time")
+
+    labels = []
+    sizes = []
+
+    if feasible_obl > 0:
+        labels.append("Feasible Obligations")
+        sizes.append(feasible_obl)
+    if feasible_free > 0:
+        labels.append("Feasible Free Time")
+        sizes.append(feasible_free)
+
+    total_feasible_hours = feasible_obl + feasible_free
+    leftover = total_time - total_feasible_hours
 
     if leftover > 0:
         labels.append("Unallocated Time")
@@ -35,8 +65,11 @@ def update_pie_chart():
 
     fig = Figure(figsize=(6, 5), dpi=100)
     ax = fig.add_subplot(111)
-    ax.pie(sizes,labels=labels, autopct="%1.1f%%", startangle=90)
-    ax.set_title("Weekly Hours Breakdown", fontsize=14, fontweight="bold")
+
+    if sizes:
+        ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
+
+    ax.set_title("Optimal Schedule Breakdown", fontsize=14, fontweight="bold")
 
     canvas = FigureCanvasTkAgg(fig, master=tab4_graphics)
     canvas.draw()
@@ -61,6 +94,48 @@ def update_optimal_view():
     for item in rejected:
         rejected_listbox.insert(END, f"[{item['name']} | {item['category']} | {item['hours']} hrs | Priority: {item['importance']}]")
 
+# Statistics ----------
+
+def update_statistics_view():
+    for widget in tab3_statistics.winfo_children():
+        widget.destroy()
+
+    if not activities_db:
+        Label(tab3_statistics, text="Add Activities to view your statistics!").pack(pady=50)
+        return
+
+    obl_hours = sum(act["hours"] for act in activities_db if act["category"] == "Obligation")
+    free_hours = sum(act["hours"] for act in activities_db if act["category"] == "Free Time")
+
+    obl_count = sum(1 for act in activities_db if act["category"] == "Obligation")
+    free_count = sum(1 for act in activities_db if act["category"] == "Free Time")
+
+    avg_obl = (obl_hours / obl_count) if obl_count > 0 else 0.0
+    avg_free = (free_hours / free_count) if free_count > 0 else 0.0
+
+    Label(tab3_statistics, text="Activity Statistics", font=("Arial", 14, "bold")).pack(pady=(20,15))
+    Label(tab3_statistics, text=f"Total Time on Obligations: {obl_hours:.1f} hours", font=("Arial", 11)).pack(anchor="w", padx=20, pady=5)
+    Label(tab3_statistics, text=f"Total Time on Free Time: {free_hours:.1f} hours", font=("Arial", 11)).pack(anchor="w", padx=20, pady=5)
+
+    Separator(tab3_statistics, orient="horizontal").pack(fill='x', padx=20, pady=5)
+
+    Label(tab3_statistics, text=f"Average Time per Obligation: {avg_obl:.1f} hrs", font=("Arial", 11)).pack(anchor="w", padx=20, pady=5)
+    Label(tab3_statistics, text=f"Average Time per Free Time: {avg_free:.1f} hrs", font=("Arial", 11)).pack(anchor="w", padx=20, pady=5)
+
+# Saving & Exiting ----------
+
+def on_application_exit():
+
+    response = messagebox.askyesno("Exit Application", "Do you want to save your changes before exiting?")
+
+    if response is True:
+        all_functions.save_data(activities_db)
+        root.destroy()
+    elif response is False:
+        root.destroy()
+    else:
+        return
+
 # ==== GUI FUNCTIONS ====
 
 # ---- Available Weekly Hours ----
@@ -79,6 +154,7 @@ def update_time_display():
 
     update_pie_chart()
     update_optimal_view()
+    update_statistics_view()
 
 # ---- Adding an Activity ----
 
@@ -189,7 +265,7 @@ def delete_activity():
 root = Tk()
 root.geometry("1000x800")
 root.title("Time Management Application")
-root.iconbitmap("icon_2.ico")
+root.iconbitmap(get_icon_path("icon_2.ico"))
 
 root.columnconfigure(0, weight=1)
 root.columnconfigure(1, weight=4)
@@ -222,7 +298,7 @@ activity_name_entry.insert(0, "")
 # Row 3 ----------
 
 Label(left_frame, text="Category:").grid(row=3, column=0, sticky=W, pady=5)
-category_combo = Combobox(left_frame, state="readonly", values=["Choose Here...","Obligation", "Free Time"])
+category_combo = Combobox(left_frame, state="readonly", values=["Obligation", "Free Time"])
 category_combo.grid(row=3, column=1, sticky=EW, padx=5, pady=5)
 category_combo.set("Obligation")
 
@@ -236,7 +312,7 @@ hours_entry.insert(0, "")
 # Row 5 ----------
 
 Label(left_frame, text="Importance (1-10):").grid(row=5, column=0, sticky=W, pady=5)
-importance_combo = Combobox(left_frame, state="readonly", values= ["Choose here...", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
+importance_combo = Combobox(left_frame, state="readonly", values= ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
 importance_combo.grid(row=5, column=1, sticky=EW, padx=5, pady=5)
 importance_combo.set("5")
 
@@ -311,6 +387,9 @@ db_table.column("category", width=100, anchor="center")
 db_table.column("hours", width=100, anchor="center")
 db_table.column("importance", width=100, anchor="center")
 
+for activity in activities_db:
+    db_table.insert(parent="", index="end", values=(activity["name"], activity["category"], activity["hours"], activity["importance"]))
+
 # Optimal Scheduling Tab ----------
 
 tab2_controls = Frame(tab2_optimal_scheduling)
@@ -328,11 +407,15 @@ rejected_listbox.pack(fill="both", expand=True, padx=10, pady=5)
 
 # EXIT BUTTON ==========
 
-exit_button = Button(root, text="Exit Application", command=root.destroy)
+exit_button = Button(root, text="Exit Application", command=on_application_exit)
 exit_button.grid(row=1, column=1, sticky=E, columnspan=2, pady=5, padx=5)
 
 # ROOT.MAINLOOP() ==========
+
+root.protocol("WM_DELETE_WINDOW", on_application_exit)
+
 update_pie_chart()
 update_optimal_view()
+update_statistics_view()
 
 root.mainloop()
