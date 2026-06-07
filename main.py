@@ -42,7 +42,7 @@ def update_pie_chart():
 
     feasible, _ = all_functions.calculate_optimal_schedule(activities_db, total_time)
 
-    # 3. Sum up the hours by category for feasible activities only
+    
     feasible_obl = sum(item["hours"] for item in feasible if item["category"] == "Obligation")
     feasible_free = sum(item["hours"] for item in feasible if item["category"] == "Free Time")
 
